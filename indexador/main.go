@@ -1,12 +1,15 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"github.com/elissonalvesilva/search-light/indexador/algorithms"
 	"github.com/elissonalvesilva/search-light/indexador/shared"
 	"io/ioutil"
+	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -49,25 +52,75 @@ func Indexador(product map[string]interface{}, index *algorithms.InvertedIndex, 
 	wg.Done()
 }
 
-func main() {
-	productsBytes, productFile := getDataFromFile("/home/linx/Applications/dumps/puket-vtext/data")
-	defer productFile.Close()
+func getFiles(path string) []string {
+	var files []string
+	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if strings.Contains(path, ".gz") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
 
+	return files
+}
+
+func main() {
 	stopWordsBytes, stopWordsFile := getDataFromFile("/home/linx/Applications/projects/search-light/indexador/shared/stopwords.txt")
 	defer stopWordsFile.Close()
 	stopWords = getStopWords(stopWordsBytes)
 
-	products := strings.Split(string(productsBytes), "\n")
 	invertedIndex := algorithms.NewInvertedIndexAlgorithm(stopWords)
+
 	index := invertedIndex.CreateInvertedIndex()
 
-	for _, productItem := range products {
-		wg.Add(1)
-		var product map[string]interface{}
-		json.Unmarshal([]byte(productItem), &product)
-		go Indexador(product, index, *invertedIndex)
-		wg.Wait()
-	}
+	files := getFiles("/home/linx/Applications/dumps/puket-vtext/")
 
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		defer f.Close()
+		gr, err := gzip.NewReader(f)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer gr.Close()
+
+		byteValue, _ := ioutil.ReadAll(gr)
+
+		products := strings.Split(string(byteValue), "\n")
+		fmt.Println(file, len(products))
+		for _, productItem := range products {
+			wg.Add(1)
+			var product map[string]interface{}
+			json.Unmarshal([]byte(productItem), &product)
+			go Indexador(product, index, *invertedIndex)
+			wg.Wait()
+		}
+
+	}
+	fmt.Println(len(index.Items))
 	defer shared.TimeTrack(time.Now(), "Indexador: ")
+
+
+	//productsBytes, productFile := getDataFromFile("/home/linx/Applications/dumps/puket-vtext/data")
+	//defer productFile.Close()
+	//
+	//
+	//
+	//products := strings.Split(string(productsBytes), "\n")
+	//fmt.Println(len(products))
+	//for _, productItem := range products {
+	//	wg.Add(1)
+	//	var product map[string]interface{}
+	//	json.Unmarshal([]byte(productItem), &product)
+	//	go Indexador(product, index, *invertedIndex)
+	//	wg.Wait()
+	//}
+	//fmt.Println(len(index.Items))
 }

@@ -41,7 +41,7 @@ func RemoveStopWords(wordList []string, stopWords map[string]string) []string {
 	var words []string
 
 	for _, entry := range wordList {
-		if stopWords[entry] == "" {
+		if _, exists := stopWords[entry]; !exists {
 			words = append(words, entry)
 		}
 	}
