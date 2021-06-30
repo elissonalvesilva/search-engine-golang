@@ -8,10 +8,12 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
 var stopWords map[string]string
+var wg sync.WaitGroup
 
 func getDataFromFile(filename string) ([]byte, *os.File) {
 	jsonFile, err := os.Open(filename)
@@ -36,6 +38,17 @@ func getStopWords(bytes []byte) map[string]string {
 	return stopWords
 }
 
+func Indexador(product map[string]interface{}, index *algorithms.InvertedIndex, alg algorithms.InvertedIndexAlgorithm) {
+	if product != nil {
+		name := fmt.Sprintf("%v", product["name"])
+		tokens := alg.Tokenizer(name)
+		for i, token := range tokens {
+			alg.AddItem(token, i, index)
+		}
+	}
+	wg.Done()
+}
+
 func main() {
 	productsBytes, productFile := getDataFromFile("/home/linx/Applications/dumps/puket-vtext/data")
 	defer productFile.Close()
@@ -47,16 +60,13 @@ func main() {
 	products := strings.Split(string(productsBytes), "\n")
 	invertedIndex := algorithms.NewInvertedIndexAlgorithm(stopWords)
 	index := invertedIndex.CreateInvertedIndex()
+
 	for _, productItem := range products {
+		wg.Add(1)
 		var product map[string]interface{}
 		json.Unmarshal([]byte(productItem), &product)
-		if product != nil {
-			name := fmt.Sprintf("%v", product["name"])
-			tokens := invertedIndex.Tokenizer(name)
-			for i, token := range tokens {
-				invertedIndex.AddItem(token, i, index)
-			}
-		}
+		go Indexador(product, index, *invertedIndex)
+		wg.Wait()
 	}
 
 	defer shared.TimeTrack(time.Now(), "Indexador: ")

@@ -34,7 +34,6 @@ func (alg *InvertedIndexAlgorithm) Tokenizer(word string) []string {
 	wordList = r.FindAllString(lowerWord, -1)
 	wordList = RemoveStopWords(wordList, alg.stopWords)
 
-
 	return wordList
 }
 
@@ -47,19 +46,6 @@ func RemoveStopWords(wordList []string, stopWords map[string]string) []string {
 		}
 	}
 	return words
-}
-
-func RemoveDuplicates(wordList []string) []string {
-	keys := make(map[string]bool)
-	var uniqueWords []string
-
-	for _, entry := range wordList {
-		if _, value := keys[entry]; !value {
-			keys[entry] = true
-			uniqueWords = append(uniqueWords, entry)
-		}
-	}
-	return uniqueWords
 }
 
 func (invertedIndex *InvertedIndex) FindItem(Term string) int {
