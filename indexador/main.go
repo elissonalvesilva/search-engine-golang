@@ -10,13 +10,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
 )
 
 var stopWords map[string]string
-var wg sync.WaitGroup
 
 func getDataFromFile(filename string) ([]byte, *os.File) {
 	jsonFile, err := os.Open(filename)
@@ -41,13 +41,10 @@ func getStopWords(bytes []byte) map[string]string {
 	return stopWords
 }
 
-func Indexador(product map[string]interface{}, index *algorithms.InvertedIndex, alg algorithms.InvertedIndexAlgorithm) {
-	if product != nil {
-		name := fmt.Sprintf("%v", product["name"])
-		tokens := alg.Tokenizer(name)
-		for i, token := range tokens {
-			alg.AddItem(token, i, index)
-		}
+func Indexador(itemToIndex string, index *algorithms.InvertedIndex, alg algorithms.InvertedIndexAlgorithm, wg *sync.WaitGroup) {
+	tokens := alg.Tokenizer(itemToIndex)
+	for i, token := range tokens {
+		alg.AddItem(token, i, index)
 	}
 	wg.Done()
 }
@@ -67,7 +64,8 @@ func getFiles(path string) []string {
 	return files
 }
 
-func main() {
+func Index() {
+	defer shared.TimeTrack(time.Now(), "Indexador: ")
 	stopWordsBytes, stopWordsFile := getDataFromFile("/home/linx/Applications/projects/search-light/indexador/shared/stopwords.txt")
 	defer stopWordsFile.Close()
 	stopWords = getStopWords(stopWordsBytes)
@@ -76,8 +74,11 @@ func main() {
 
 	index := invertedIndex.CreateInvertedIndex()
 
-	files := getFiles("/home/linx/Applications/dumps/puket-vtext/")
+	enabledIndexDetails := true
+	var detailsProducts []map[string]interface{}
 
+	files := getFiles("/home/linx/Applications/dumps/puket-vtext/")
+	var wg sync.WaitGroup
 	for _, file := range files {
 		f, err := os.Open(file)
 		if err != nil {
@@ -94,33 +95,110 @@ func main() {
 		byteValue, _ := ioutil.ReadAll(gr)
 
 		products := strings.Split(string(byteValue), "\n")
-		fmt.Println(file, len(products))
 		for _, productItem := range products {
-			wg.Add(1)
-			var product map[string]interface{}
-			json.Unmarshal([]byte(productItem), &product)
-			go Indexador(product, index, *invertedIndex)
-			wg.Wait()
+			if productItem != "" {
+				wg.Add(1)
+				var product map[string]interface{}
+				json.Unmarshal([]byte(productItem), &product)
+
+				itemToIndex := fmt.Sprintf("%v", product["name"])
+				go Indexador(itemToIndex, index, *invertedIndex, &wg)
+				if enabledIndexDetails {
+					details := product["details"].(map[string]interface{})
+					detailsProducts = append(detailsProducts, details)
+				}
+				wg.Wait()
+			}
 		}
 
+		if enabledIndexDetails {
+			for _, v := range detailsProducts {
+				for _, detail := range v {
+					if reflect.TypeOf(detail).String() == "string" {
+						wg.Add(1)
+						itemToIndex := fmt.Sprintf("%v", detail)
+						go Indexador(itemToIndex, index, *invertedIndex, &wg)
+						wg.Wait()
+					}
+
+					if reflect.TypeOf(detail).Kind().String() == "slice" {
+						arr := reflect.ValueOf(detail)
+						for i := 0; i < arr.Len(); i++ {
+							wg.Add(1)
+							itemToIndex := fmt.Sprintf("%v", arr.Index(i))
+							go Indexador(itemToIndex, index, *invertedIndex, &wg)
+							wg.Wait()
+						}
+					}
+				}
+
+			}
+		}
 	}
 	fmt.Println(len(index.Items))
-	defer shared.TimeTrack(time.Now(), "Indexador: ")
+}
 
-
+func main() {
+	Index()
+	//defer shared.TimeTrack(time.Now(), "Indexador: ")
+	//stopWordsBytes, stopWordsFile := getDataFromFile("/home/linx/Applications/projects/search-light/indexador/shared/stopwords.txt")
+	//defer stopWordsFile.Close()
+	//stopWords = getStopWords(stopWordsBytes)
+	//
+	//invertedIndex := algorithms.NewInvertedIndexAlgorithm(stopWords)
+	//
+	//index := invertedIndex.CreateInvertedIndex()
+	//
 	//productsBytes, productFile := getDataFromFile("/home/linx/Applications/dumps/puket-vtext/data")
 	//defer productFile.Close()
-	//
-	//
-	//
 	//products := strings.Split(string(productsBytes), "\n")
-	//fmt.Println(len(products))
+	//var wg sync.WaitGroup
+	//enabledIndexDetails := true
+	//var detailsProducts []map[string]interface{}
+	//
+	//// index name
 	//for _, productItem := range products {
-	//	wg.Add(1)
-	//	var product map[string]interface{}
-	//	json.Unmarshal([]byte(productItem), &product)
-	//	go Indexador(product, index, *invertedIndex)
-	//	wg.Wait()
+	//	if productItem != "" {
+	//		wg.Add(1)
+	//		var product map[string]interface{}
+	//		json.Unmarshal([]byte(productItem), &product)
+	//
+	//		itemToIndex := fmt.Sprintf("%v", product["name"])
+	//		go Indexador(itemToIndex, index, *invertedIndex, &wg)
+	//		if enabledIndexDetails {
+	//			details := product["details"].(map[string]interface{})
+	//			detailsProducts = append(detailsProducts, details)
+	//		}
+	//		wg.Wait()
+	//	}
 	//}
+	//
+	//
+	//var waitGroupDetail sync.WaitGroup
+	//// index details
+	//if enabledIndexDetails {
+	//	for _, v := range detailsProducts {
+	//		for _, detail := range v {
+	//			if reflect.TypeOf(detail).String() == "string" {
+	//				waitGroupDetail.Add(1)
+	//				itemToIndex := fmt.Sprintf("%v", detail)
+	//				go Indexador(itemToIndex, index, *invertedIndex, &waitGroupDetail)
+	//				waitGroupDetail.Wait()
+	//			}
+	//
+	//			if reflect.TypeOf(detail).Kind().String() == "slice" {
+	//				arr := reflect.ValueOf(detail)
+	//				for i := 0; i < arr.Len(); i++ {
+	//					waitGroupDetail.Add(1)
+	//					itemToIndex := fmt.Sprintf("%v", arr.Index(i))
+	//					go Indexador(itemToIndex, index, *invertedIndex, &waitGroupDetail)
+	//					waitGroupDetail.Wait()
+	//				}
+	//			}
+	//		}
+	//
+	//	}
+	//}
+	//
 	//fmt.Println(len(index.Items))
 }
