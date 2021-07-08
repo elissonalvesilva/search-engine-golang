@@ -1,17 +1,17 @@
 package algorithms
 
 import (
-	"regexp"
 	"strings"
 )
 
 type InvertedIndexAlgorithm struct {
-	stopWords map[string]string
+	stopWords     map[string]string
 	invertedIndex InvertedIndex
 }
 
 type InvertedIndexEntry struct {
-	Term string
+	Term     string
+	Index    int
 	Document []int
 }
 
@@ -22,7 +22,7 @@ type InvertedIndex struct {
 
 func NewInvertedIndexAlgorithm(stopWordList map[string]string) *InvertedIndexAlgorithm {
 	return &InvertedIndexAlgorithm{
-		stopWords: stopWordList,
+		stopWords:     stopWordList,
 		invertedIndex: InvertedIndex{},
 	}
 }
@@ -30,8 +30,7 @@ func NewInvertedIndexAlgorithm(stopWordList map[string]string) *InvertedIndexAlg
 func (alg *InvertedIndexAlgorithm) Tokenizer(word string) []string {
 	var wordList []string
 	lowerWord := strings.ToLower(word)
-	r := regexp.MustCompile("[^\\s]+")
-	wordList = r.FindAllString(lowerWord, -1)
+	wordList = strings.Split(lowerWord, " ")
 	wordList = RemoveStopWords(wordList, alg.stopWords)
 
 	return wordList
@@ -41,20 +40,11 @@ func RemoveStopWords(wordList []string, stopWords map[string]string) []string {
 	var words []string
 
 	for _, entry := range wordList {
-		if _, exists := stopWords[entry]; !exists {
+		if _, exists := stopWords[entry]; !exists && entry != " " {
 			words = append(words, entry)
 		}
 	}
 	return words
-}
-
-func (invertedIndex *InvertedIndex) FindItem(Term string) int {
-	for index, item := range invertedIndex.Items {
-		if item.Term == Term {
-			return index
-		}
-	}
-	panic("Not Found")
 }
 
 func (alg *InvertedIndexAlgorithm) CreateInvertedIndex() *InvertedIndex {
@@ -66,13 +56,14 @@ func (alg *InvertedIndexAlgorithm) CreateInvertedIndex() *InvertedIndex {
 }
 
 func (alg *InvertedIndexAlgorithm) AddItem(Term string, Document int, index *InvertedIndex) {
-	if index.HashMap[Term] != nil {
-		FoundItemPosition := index.FindItem(Term)
-		index.Items[FoundItemPosition].Document = append(index.Items[FoundItemPosition].Document, Document)
+	if item, exists := index.HashMap[Term]; exists {
+		item := &index.Items[item.Index].Document
+		*item = append(*item, Document)
 	} else {
 		InvertedIndexEntry := &InvertedIndexEntry{
-			Term:            Term,
+			Term:     Term,
 			Document: []int{Document},
+			Index:    Document,
 		}
 		index.HashMap[Term] = InvertedIndexEntry
 		index.Items = append(index.Items, InvertedIndexEntry)
