@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elissonalvesilva/search-light/indexador/algorithms"
-	"github.com/elissonalvesilva/search-light/indexador/shared"
+	"github.com/elissonalvesilva/search-engine-golang/indexador/algorithms"
+	"github.com/elissonalvesilva/search-engine-golang/indexador/shared"
 )
 
 var stopWords map[string]string
@@ -159,7 +159,7 @@ func IndexCategories(categories []interface{}, index *algorithms.InvertedIndex, 
 func Index() {
 	defer shared.TimeTrack(time.Now(), "Indexador: ")
 
-	stopWordsBytes, stopWordsFile := getDataFromFile("/home/linx/Applications/projects/search-light/indexador/shared/stopwords.txt")
+	stopWordsBytes, stopWordsFile := getDataFromFile("/home/linx/Applications/projects/search-engine-golang/indexador/shared/stopwords.txt")
 	defer stopWordsFile.Close()
 
 	stopWords = getStopWords(stopWordsBytes)

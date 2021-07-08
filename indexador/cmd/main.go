@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"github.com/elissonalvesilva/search-light/indexador"
+	"github.com/elissonalvesilva/search-engine-golang/indexador"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")

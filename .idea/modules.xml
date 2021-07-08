@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/search-light.iml" filepath="$PROJECT_DIR$/.idea/search-light.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/search-engine-golang.iml" filepath="$PROJECT_DIR$/.idea/search-engine-golang.iml" />
     </modules>
   </component>
 </project>

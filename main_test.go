@@ -3,7 +3,7 @@ package search_light
 import (
 	"testing"
 
-	"github.com/elissonalvesilva/search-light/indexador"
+	"github.com/elissonalvesilva/search-engine-golang/indexador"
 )
 
 func BenchmarkIndex(b *testing.B) {
